@@ -35,11 +35,11 @@ for (file_path in input_files) {
   }
 }
 
-# Debug: Print column names of combined data
+# Debug: Print combined data column names
 print("Column names of combined data (fragCount):")
 print(colnames(fragCount))
 
-# Add a pseudocount to handle zeros and log-transform the data
+# Add a pseudocount and log-transform the data
 fragCount <- fragCount %>%
   mutate(across(-c(chrom, bin), ~ . + 1)) %>%  # Add pseudocount
   mutate(across(-c(chrom, bin), log2))        # Log2 transform
@@ -48,7 +48,7 @@ fragCount <- fragCount %>%
 print("Column names after log transformation:")
 print(colnames(fragCount))
 
-# Remove zero-variance columns, keeping `chrom` and `bin`
+# Filter columns to retain only those with variance > 0
 sample_columns <- setdiff(colnames(fragCount), c("chrom", "bin"))
 fragCount_filtered <- fragCount %>%
   select(chrom, bin, where(~ !is.na(var(.x, na.rm = TRUE)) && var(.x, na.rm = TRUE) > 0))
@@ -59,6 +59,7 @@ print(colnames(fragCount_filtered))
 
 # If not enough columns for correlation, generate a blank plot
 if (ncol(fragCount_filtered) <= 2) {
+  print("Insufficient data for correlation. Generating blank plot.")
   output_file <- file.path(output_dir, "fragCount_correlation_plot.pdf")
   pdf(output_file, width = 8, height = 8)
   plot.new()
@@ -68,7 +69,23 @@ if (ncol(fragCount_filtered) <= 2) {
 }
 
 # Calculate correlation matrix
-M <- cor(fragCount_filtered %>% select(-chrom, -bin), use = "complete.obs")
+correlation_data <- fragCount_filtered %>% select(-chrom, -bin)
+M <- cor(correlation_data, use = "complete.obs")
+
+# Debug: Print correlation matrix
+print("Correlation matrix:")
+print(M)
+
+# Handle invalid correlation matrix values
+if (any(is.na(M) | is.nan(M) | is.infinite(M))) {
+  print("Invalid values in correlation matrix. Generating blank plot.")
+  output_file <- file.path(output_dir, "fragCount_correlation_plot.pdf")
+  pdf(output_file, width = 8, height = 8)
+  plot.new()
+  text(0.5, 0.5, "Invalid correlation matrix", cex = 1.5)
+  dev.off()
+  quit(save = "no", status = 0)
+}
 
 # Dynamically set addrect based on the number of samples
 num_samples <- ncol(M)
