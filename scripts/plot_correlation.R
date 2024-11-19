@@ -42,7 +42,7 @@ fragCount <- fragCount %>%
 
 # Remove zero-variance columns
 fragCount_filtered <- fragCount %>%
-  select(where(~ var(.x, na.rm = TRUE) > 0))
+  select(where(~ !is.na(var(.x, na.rm = TRUE)) && var(.x, na.rm = TRUE) > 0))
 
 # If not enough columns for correlation, generate a blank plot
 if (ncol(fragCount_filtered) <= 2) {
@@ -69,4 +69,3 @@ corrplot(M, method = "color", outline = TRUE, addgrid.col = "darkgray", order = 
          tl.cex = 1, cl.cex = 1, addCoef.col = "black", number.digits = 2, number.cex = 1,
          col = colorRampPalette(c("midnightblue", "white", "darkred"))(100))
 dev.off()
-
