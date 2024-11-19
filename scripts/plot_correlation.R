@@ -27,11 +27,6 @@ for (file_path in input_files) {
   fragCountTmp <- read.table(file_path, header = FALSE)
   colnames(fragCountTmp) <- c("chrom", "bin", sample_name)
   
-  # Debug: Print column names of each file
-  print(paste("Processing file:", file_path))
-  print("Column names of current file:")
-  print(colnames(fragCountTmp))
-  
   # Combine with existing data
   if (is.null(fragCount)) {
     fragCount <- fragCountTmp
@@ -53,9 +48,10 @@ fragCount <- fragCount %>%
 print("Column names after log transformation:")
 print(colnames(fragCount))
 
-# Remove zero-variance columns
+# Remove zero-variance columns, keeping `chrom` and `bin`
+sample_columns <- setdiff(colnames(fragCount), c("chrom", "bin"))
 fragCount_filtered <- fragCount %>%
-  select(where(~ !is.na(var(.x, na.rm = TRUE)) && var(.x, na.rm = TRUE) > 0))
+  select(chrom, bin, where(~ !is.na(var(.x, na.rm = TRUE)) && var(.x, na.rm = TRUE) > 0))
 
 # Debug: Print column names after filtering
 print("Column names after filtering:")
