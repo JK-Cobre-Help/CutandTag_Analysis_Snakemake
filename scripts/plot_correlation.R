@@ -19,28 +19,33 @@ fragCount <- NULL
 
 # Loop through each input file to collect fragment count data
 for (file_path in input_files) {
-  
-  # Extract sample name from file name
   sample_name <- gsub("_bowtie2.fragmentsCount.bin500.bed", "", basename(file_path))
-  
-  # Read the fragment count data
-  fragCountTmp <- read.table(file_path, header = FALSE)
-  colnames(fragCountTmp) <- c("chrom", "bin", sample_name)
-  
-  # Combine with existing data
+  fragData <- read.table(file_path, header = FALSE)
+  colnames(fragData) <- c("chrom", "bin", sample_name)
+
   if (is.null(fragCount)) {
-    fragCount <- fragCountTmp
+    fragCount <- fragData
   } else {
-    fragCount <- full_join(fragCount, fragCountTmp, by = c("chrom", "bin"))
+    fragCount <- full_join(fragCount, fragData, by = c("chrom", "bin"))
   }
 }
 
-# Calculate correlation matrix
-M <- cor(fragCount %>% select(-chrom, -bin) %>% log2(), use = "complete.obs")
+# Replace zero or negative values with 1 and filter zero-variance columns
+filtered_fragCount <- fragCount %>%
+  mutate(across(-c(chrom, bin), ~ replace(.x, .x <= 0, 1))) %>%
+  select(-chrom, -bin) %>%
+  select(where(~ var(.x, na.rm = TRUE) > 0))
 
-# Dynamically set addrect based on the number of samples
-num_samples <- ncol(M)
-addrect_value <- ifelse(num_samples >= 3, 3, num_samples)
+# Stop if not enough valid data for correlation
+if (ncol(filtered_fragCount) < 2) {
+  stop("Not enough valid columns for correlation calculation after filtering.")
+}
+
+# Calculate correlation matrix
+M <- cor(filtered_fragCount %>% log2(), use = "complete.obs")
+
+# Adjust clustering dynamically
+addrect_value <- ifelse(ncol(M) >= 3, 3, ncol(M))
 
 # Generate correlation plot
 output_file <- file.path(output_dir, "fragCount_correlation_plot.pdf")
