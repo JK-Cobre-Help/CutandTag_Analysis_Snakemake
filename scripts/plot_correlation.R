@@ -30,8 +30,26 @@ for (file_path in input_files) {
   }
 }
 
-# Replace zero or negative values with 1 and filter zero-variance columns
+# Summarize replicate counts per histone mark
+replicate_summary <- fragCount %>%
+  pivot_longer(cols = -c(chrom, bin), names_to = "Sample", values_to = "Count") %>%
+  mutate(Histone = gsub("_.*", "", Sample)) %>%
+  group_by(Histone) %>%
+  summarise(ReplicateCount = n_distinct(Sample))
+
+# Filter out histone marks with fewer than 2 replicates
+valid_histones <- replicate_summary %>%
+  filter(ReplicateCount >= 2) %>%
+  pull(Histone)
+
+valid_columns <- names(fragCount) %>%
+  keep(~ any(grepl(paste(valid_histones, collapse = "|"), .)))
+
 filtered_fragCount <- fragCount %>%
+  select(c("chrom", "bin", all_of(valid_columns)))
+
+# Replace zero or negative values with 1 and remove zero-variance columns
+filtered_fragCount <- filtered_fragCount %>%
   mutate(across(-c(chrom, bin), ~ replace(.x, .x <= 0, 1))) %>%
   select(-chrom, -bin) %>%
   select(where(~ var(.x, na.rm = TRUE) > 0))
