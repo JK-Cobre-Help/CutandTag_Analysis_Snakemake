@@ -27,6 +27,11 @@ for (file_path in input_files) {
   fragCountTmp <- read.table(file_path, header = FALSE)
   colnames(fragCountTmp) <- c("chrom", "bin", sample_name)
   
+  # Debug: Print column names of each file
+  print(paste("Processing file:", file_path))
+  print("Column names of current file:")
+  print(colnames(fragCountTmp))
+  
   # Combine with existing data
   if (is.null(fragCount)) {
     fragCount <- fragCountTmp
@@ -35,14 +40,26 @@ for (file_path in input_files) {
   }
 }
 
+# Debug: Print column names of combined data
+print("Column names of combined data (fragCount):")
+print(colnames(fragCount))
+
 # Add a pseudocount to handle zeros and log-transform the data
 fragCount <- fragCount %>%
   mutate(across(-c(chrom, bin), ~ . + 1)) %>%  # Add pseudocount
   mutate(across(-c(chrom, bin), log2))        # Log2 transform
 
+# Debug: Print column names after log transformation
+print("Column names after log transformation:")
+print(colnames(fragCount))
+
 # Remove zero-variance columns
 fragCount_filtered <- fragCount %>%
   select(where(~ !is.na(var(.x, na.rm = TRUE)) && var(.x, na.rm = TRUE) > 0))
+
+# Debug: Print column names after filtering
+print("Column names after filtering:")
+print(colnames(fragCount_filtered))
 
 # If not enough columns for correlation, generate a blank plot
 if (ncol(fragCount_filtered) <= 2) {
